@@ -8,24 +8,26 @@ import pandas as pd
 def manual_cleaning_abbr(page_idx: int, page_text: str) -> str:
 
     if page_idx == 0:
-        page_text = re.sub(r'Автономная Советская Оо\n\s+циалистическая Республика', 'Автономная Советская Социалистическая Республика', page_text) 
-        page_text = page_text.replace('дивизион\nабм  ','дивизион;\nабм ') 
+        page_text = re.sub(r'Автономная Советская Оо\n\s+циалистическая Республика', 'Автономная Советская Социалистическая Республика', page_text)  
     elif page_idx == 3:
-        page_text = page_text.replace(';\nа. д. ', ';\nа. д. --') 
+        page_text = page_text.replace(';\nа. д. ', ';\nа. д. --')
+        page_text = page_text.replace('авиационная  зажигательная  бомба;\n', 'авиационная  зажигательная  бомба,') 
     elif page_idx == 5:
         page_text = page_text.replace('и т. д.\nал ','и т. д.;\nал ')
+    elif page_idx == 7:
+        page_text = page_text.replace('ев:\nАРС —','ев;\nАРС —') 
     return page_text
 
 # Some abbreviations were read without separation between abbr and its meaning
 def add_long_dash_after_abbr(page_text: str) -> str:
     # fix it at the beginning of the page
-    matches = re.findall(r'^\s*([\w\.\]+\s{8,})[\w■\"\']+', page_text)
+    matches = re.findall(r'^\s*([\w\.]+(\s\(?\w+\)?)?\s{8,})-?\s*-?\s*[\w■\"\']+', page_text)
     for m in matches:
-        page_text = page_text.replace(m, m + '--') 
+        page_text = page_text.replace(m[0], m[0] + '--') 
     # fix it at the rest of the page
-    matches = re.findall(r';\n+\s*([\w\.]+\s{8,})[\w■\"\']+', page_text)
+    matches = re.findall(r';\n+\s*([\w\.]+(\s\(?\w+\)?)?\s{8,})-?\s*-?\s*[\w■\"\']+', page_text)
     for m in matches:
-        page_text = page_text.replace(m, m + '--')
+        page_text = page_text.replace(m[0], m[0] + '--')
     return page_text
 
 # Cleans majority, but needs more cleaning (pg 209)
@@ -40,10 +42,11 @@ def read_abbr(filename: str) -> List[Tuple[str]]:
         # manual cleaning
         page_text = manual_cleaning_abbr(i, page_text)
         # rule-base cleaning
-        page_text_clean = re.sub(r'\n+\s*\-*\d+\.*\s*\**\s*\d*\n*$', '\n', page_text) # replaces the page number at the end of the page with new line
+        page_text_clean = re.sub(r'\n+\s*\-*»*\d+\.?\,?\s*\**\s*\d*\n*$', '\n', page_text) # replaces the page number at the end of the page with new line
         page_text_clean = re.sub(r'^\n*\s*\w\s*\n+', '', page_text_clean) # removes the letter at the begining of the page
-        page_text_clean = add_long_dash_after_abbr(page_text_clean) # add long dash after abbreviations as they are missing
-        page_text_clean = re.sub(r"\n{2,}", "\n",page_text_clean) # removes doube new lines
+        page_text_clean = re.sub(r'—([\(\)\.\,\s\w]+):?\n([\(\)\s\w]+)—', r'— \1;\n\2 —',page_text_clean) # separates 2 abbreviations into 2 lines
+        page_text_clean = add_long_dash_after_abbr(page_text_clean) # adds long dash after abbreviations as they are missing
+        page_text_clean = re.sub(r"\n{2,}", "\n",page_text_clean) # removes double new line
         page_text_clean = re.sub(r"\xad\n*\s*", "",page_text_clean) # stiches meaning of abbreviation to one line
         page_text_clean = re.sub(r"\,\n\s*", ", ",page_text_clean) # stiches meaning of abbreviations to one line
         page_text_clean = re.sub(r"\-\n\s*", "",page_text_clean) # stiches meaning of abbreviations to one line
